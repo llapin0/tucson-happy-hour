@@ -14,12 +14,6 @@ npm run build-bars   # Merge OSM + manual curation → bars.json
 npm run build-data   # Both
 ```
 
-## Live preview
-
-Temporary Cloudflare deploy: https://tucson-happy-hour.discreet-rise.workers.dev
-
-Claim the preview account (within ~60 minutes of deploy) via the claim URL printed by `npm run deploy`, or run `npx wrangler login` for a permanent project.
-
 ## Local preview
 
 ```bash
@@ -28,11 +22,21 @@ npm run serve
 
 Open http://localhost:3000
 
-## Deploy
+## Deploy (Cloudflare)
+
+**Deploy command** (Workers / CI):
 
 ```bash
-npm run deploy   # Cloudflare Workers temporary preview
+node scripts/prepare-public.mjs && npx wrangler deploy
 ```
+
+Or locally after `npx wrangler login`:
+
+```bash
+npm run deploy
+```
+
+`public/` is generated (not committed). The prepare step copies `index.html`, `app.js`, `styles.css`, and `bars.json` into it before Wrangler uploads.
 
 ## MVP features
 
