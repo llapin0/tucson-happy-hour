@@ -7,7 +7,7 @@
   "scripts": {
     "fetch-osm": "node scripts/fetch-osm.mjs",
     "build-bars": "node scripts/build-bars.mjs",
-    "build-data": "npm run fetch-osm && npm run build-bars",
+    "build-data": "npm run build-bars",
     "prepare-public": "node scripts/prepare-public.mjs",
     "serve": "npm run prepare-public && npx --yes serve public -p 3000",
     "deploy": "npm run prepare-public && npx --yes wrangler deploy"

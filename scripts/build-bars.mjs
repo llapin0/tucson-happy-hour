@@ -1,6 +1,7 @@
 /**
- * Merge OSM raw data + manual curation, assign neighborhoods & Sun Link,
- * emit bars.json for the frontend.
+ * Build bars.json from curated research (primary) + OSM coords (fallback only).
+ * Curated sources: Tucson Foodie, Wine Enthusiast 2025, venue websites, public Yelp listings.
+ * Does NOT scrape Google/Yelp APIs.
  */
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -32,6 +33,7 @@ function normalizeName(name) {
   return name
     .toLowerCase()
     .replace(/[''`]s\b/g, 's')
+    .replace(/\b(bar|co|company|brewing|brewery|cafe|café|the)\b/g, '')
     .replace(/[^a-z0-9]/g, '');
 }
 
@@ -45,7 +47,7 @@ function nearestNeighborhood(lat, lng, neighborhoods) {
       best = n;
     }
   }
-  return { neighborhood: best.name, area: best.area, dist: bestDist };
+  return { neighborhood: best.name, area: best.area };
 }
 
 function nearestSunlink(lat, lng, stops, maxMiles) {
@@ -64,109 +66,103 @@ function nearestSunlink(lat, lng, stops, maxMiles) {
   return null;
 }
 
-function mergeBar(osm, manual) {
-  const m = manual || {};
-  const lat = m.lat ?? osm?.lat;
-  const lng = m.lng ?? osm?.lng;
-  if (lat == null || lng == null) return null;
+async function geocodeAddress(address) {
+  const url =
+    'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=' +
+    encodeURIComponent(address);
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'TucsonHappyHour/0.2 (curation; local research pipeline)' },
+  });
+  if (!res.ok) return null;
+  const json = await res.json();
+  if (!json?.length) return null;
+  return { lat: parseFloat(json[0].lat), lng: parseFloat(json[0].lon) };
+}
 
-  const name = m.name || osm?.name;
-  if (!name) return null;
-
-  return {
-    name,
-    neighborhood: m.neighborhood || '',
-    area: m.area || '',
-    price: m.price ?? 2,
-    happy_hour_days: m.happy_hour_days ?? '',
-    happy_hour_times: m.happy_hour_times ?? '',
-    bar_hours: m.bar_hours || osm?.bar_hours || '',
-    food: m.food || '',
-    vibe: m.vibe || osm?.vibe || 'Bar',
-    outdoor: m.outdoor ?? osm?.outdoor ?? false,
-    deal: m.deal || '',
-    address: m.address || osm?.address || '',
-    website: m.website || osm?.website || '',
-    lat,
-    lng,
-    rating: m.rating ?? null,
-    rating_count: m.rating_count ?? null,
-    seating: m.seating || '',
-    source: m.source || (m.deal ? 'estimated' : 'unverified'),
-    zip: m.zip || osm?.zip || '',
-    slug: '',
-    date_checked: m.date_checked || new Date().toISOString().slice(0, 10),
-    sunlink: [],
-    featured: m.featured === true,
-    osm_id: osm?.osm_id || m.osm_id || '',
-    phone: m.phone || osm?.phone || '',
-  };
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 async function main() {
-  const raw = JSON.parse(await readFile(join(ROOT, 'data', 'raw-osm.json'), 'utf8'));
-  const manualList = JSON.parse(await readFile(join(ROOT, 'data', 'manual-bars.json'), 'utf8'));
+  const curated = JSON.parse(await readFile(join(ROOT, 'data', 'curated-bars.json'), 'utf8'));
   const geo = JSON.parse(await readFile(join(ROOT, 'data', 'neighborhoods.json'), 'utf8'));
 
-  const osmByName = new Map();
-  for (const b of raw.bars) {
-    osmByName.set(normalizeName(b.name), b);
+  let osmByName = new Map();
+  try {
+    const raw = JSON.parse(await readFile(join(ROOT, 'data', 'raw-osm.json'), 'utf8'));
+    for (const b of raw.bars || []) {
+      osmByName.set(normalizeName(b.name), b);
+    }
+  } catch {
+    console.warn('No OSM raw file — using curated coords only');
   }
 
-  const manualByName = new Map();
-  for (const b of manualList) {
-    manualByName.set(normalizeName(b.name), b);
-  }
-
-  const usedOsm = new Set();
   const results = [];
+  for (const m of curated) {
+    if (m.closed) continue;
 
-  // Manual entries first (overrides / additions)
-  for (const m of manualList) {
-    const key = normalizeName(m.name);
-    const osm = osmByName.get(key) || null;
-    if (osm) usedOsm.add(key);
-    // Also try fuzzy match against osm names containing key
-    if (!osm) {
-      for (const [k, v] of osmByName) {
-        if (k.includes(key) || key.includes(k)) {
-          usedOsm.add(k);
-          const merged = mergeBar(v, m);
-          if (merged) results.push(merged);
-          break;
-        }
-      }
-      if (!results.find((r) => normalizeName(r.name) === key)) {
-        const merged = mergeBar(null, m);
-        if (merged) results.push(merged);
-      }
-    } else {
-      const merged = mergeBar(osm, m);
-      if (merged) results.push(merged);
+    let lat = m.lat;
+    let lng = m.lng;
+    const osm = osmByName.get(normalizeName(m.name));
+
+    if ((lat == null || lng == null) && osm) {
+      lat = osm.lat;
+      lng = osm.lng;
     }
-  }
 
-  // Remaining OSM venues
-  for (const [key, osm] of osmByName) {
-    if (usedOsm.has(key)) continue;
-    if (manualByName.has(key)) continue;
-    const merged = mergeBar(osm, null);
-    if (merged) results.push(merged);
-  }
-
-  // Assign neighborhood / area / sunlink / slug
-  for (const b of results) {
-    if (!b.neighborhood || !b.area) {
-      const n = nearestNeighborhood(b.lat, b.lng, geo.neighborhoods);
-      if (!b.neighborhood) b.neighborhood = n.neighborhood;
-      if (!b.area) b.area = n.area;
+    if ((lat == null || lng == null) && m.address) {
+      console.log(`Geocoding ${m.name}…`);
+      await sleep(1100);
+      const g = await geocodeAddress(m.address.includes('Tucson') ? m.address : `${m.address}, Tucson, AZ`);
+      if (g) {
+        lat = g.lat;
+        lng = g.lng;
+      }
     }
-    const sl = nearestSunlink(b.lat, b.lng, geo.sunlink_stops, geo.sunlink_walk_miles);
-    b.sunlink = sl ? [sl.stop] : [];
-    b.slug = slugify(b.name, b.neighborhood);
+
+    if (lat == null || lng == null) {
+      console.warn(`Skipping ${m.name} — no coordinates`);
+      continue;
+    }
+
+    const hood =
+      m.neighborhood && m.area
+        ? { neighborhood: m.neighborhood, area: m.area }
+        : nearestNeighborhood(lat, lng, geo.neighborhoods);
+
+    const sl = nearestSunlink(lat, lng, geo.sunlink_stops, geo.sunlink_walk_miles);
+
+    results.push({
+      name: m.name,
+      neighborhood: hood.neighborhood,
+      area: hood.area,
+      price: m.price ?? 2,
+      happy_hour_days: m.happy_hour_days || '',
+      happy_hour_times: m.happy_hour_times || '',
+      bar_hours: m.bar_hours || osm?.bar_hours || '',
+      food: m.food || '',
+      vibe: m.vibe || osm?.vibe || 'Bar',
+      outdoor: m.outdoor ?? osm?.outdoor ?? false,
+      deal: m.deal || '',
+      address: m.address || osm?.address || '',
+      website: m.website || osm?.website || '',
+      lat,
+      lng,
+      rating: m.rating ?? null,
+      rating_count: m.rating_count ?? null,
+      seating: m.seating || '',
+      source: m.source || 'estimated',
+      zip: m.zip || '',
+      slug: slugify(m.name, hood.neighborhood),
+      date_checked: m.date_checked || new Date().toISOString().slice(0, 10),
+      sunlink: sl ? [sl.stop] : [],
+      featured: m.featured === true,
+      research_notes: m.research_notes || '',
+      phone: m.phone || osm?.phone || '',
+    });
   }
 
-  // Dedupe by normalized name (prefer manual/richer)
+  // Dedupe
   const deduped = new Map();
   for (const b of results) {
     const key = normalizeName(b.name);
@@ -177,10 +173,10 @@ async function main() {
     }
     const score = (x) =>
       (x.deal ? 4 : 0) +
-      (x.source === 'verified' ? 3 : 0) +
+      (x.source === 'verified' ? 3 : x.source === 'estimated' ? 1 : 0) +
       (x.address ? 1 : 0) +
       (x.website ? 1 : 0) +
-      (x.rating ? 1 : 0);
+      (x.featured ? 2 : 0);
     if (score(b) >= score(existing)) deduped.set(key, b);
   }
 
@@ -191,10 +187,13 @@ async function main() {
     return a.name.localeCompare(b.name);
   });
 
-  await writeFile(join(ROOT, 'bars.json'), JSON.stringify(bars, null, 2));
-  console.log(`Wrote ${bars.length} bars → bars.json`);
+  // Strip internal notes from public JSON
+  const publicBars = bars.map(({ research_notes, ...rest }) => rest);
+
+  await writeFile(join(ROOT, 'bars.json'), JSON.stringify(publicBars, null, 2));
+  console.log(`Wrote ${publicBars.length} curated bars → bars.json`);
   console.log(
-    `  with HH deals: ${bars.filter((b) => b.deal).length}, verified: ${bars.filter((b) => b.source === 'verified').length}, sunlink: ${bars.filter((b) => b.sunlink.length).length}`
+    `  deals: ${publicBars.filter((b) => b.deal).length}, verified: ${publicBars.filter((b) => b.source === 'verified').length}, sunlink: ${publicBars.filter((b) => b.sunlink.length).length}`
   );
 }
 
