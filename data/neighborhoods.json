@@ -1,0 +1,40 @@
+{
+  "areas": {
+    "Central": ["Downtown", "4th Avenue", "Main Gate/University", "Armory Park", "Barrio Viejo", "Mercado District"],
+    "Midtown": ["Sam Hughes", "Campbell/Grant", "Speedway Corridor", "Broadway Village"],
+    "Northwest/Foothills": ["Catalina Foothills", "St. Philip's Plaza", "Oro Valley", "Marana"],
+    "East": ["East Tucson", "Rita Ranch/Vail"],
+    "West": ["West Tucson", "Ajo Corridor"],
+    "South": ["South Tucson"]
+  },
+  "neighborhoods": [
+    { "name": "Downtown", "area": "Central", "lat": 32.2217, "lng": -110.9717 },
+    { "name": "4th Avenue", "area": "Central", "lat": 32.2295, "lng": -110.9655 },
+    { "name": "Main Gate/University", "area": "Central", "lat": 32.2325, "lng": -110.9525 },
+    { "name": "Armory Park", "area": "Central", "lat": 32.2165, "lng": -110.9685 },
+    { "name": "Barrio Viejo", "area": "Central", "lat": 32.2145, "lng": -110.9745 },
+    { "name": "Mercado District", "area": "Central", "lat": 32.2265, "lng": -110.9825 },
+    { "name": "Sam Hughes", "area": "Midtown", "lat": 32.2320, "lng": -110.9380 },
+    { "name": "Campbell/Grant", "area": "Midtown", "lat": 32.2505, "lng": -110.9440 },
+    { "name": "Speedway Corridor", "area": "Midtown", "lat": 32.2360, "lng": -110.9200 },
+    { "name": "Broadway Village", "area": "Midtown", "lat": 32.2215, "lng": -110.9100 },
+    { "name": "Catalina Foothills", "area": "Northwest/Foothills", "lat": 32.2900, "lng": -110.9200 },
+    { "name": "St. Philip's Plaza", "area": "Northwest/Foothills", "lat": 32.2800, "lng": -110.9450 },
+    { "name": "Oro Valley", "area": "Northwest/Foothills", "lat": 32.3900, "lng": -110.9660 },
+    { "name": "Marana", "area": "Northwest/Foothills", "lat": 32.4365, "lng": -111.2220 },
+    { "name": "East Tucson", "area": "East", "lat": 32.2200, "lng": -110.8500 },
+    { "name": "Rita Ranch/Vail", "area": "East", "lat": 32.1200, "lng": -110.7900 },
+    { "name": "West Tucson", "area": "West", "lat": 32.2300, "lng": -111.0200 },
+    { "name": "Ajo Corridor", "area": "West", "lat": 32.2000, "lng": -111.0100 },
+    { "name": "South Tucson", "area": "South", "lat": 32.1960, "lng": -110.9680 }
+  ],
+  "sunlink_stops": [
+    { "name": "Mercado", "lat": 32.2268, "lng": -110.9835 },
+    { "name": "Cushing/Congress", "lat": 32.2218, "lng": -110.9785 },
+    { "name": "Downtown", "lat": 32.2219, "lng": -110.9715 },
+    { "name": "4th Avenue", "lat": 32.2290, "lng": -110.9658 },
+    { "name": "University", "lat": 32.2318, "lng": -110.9550 },
+    { "name": "Main Gate", "lat": 32.2328, "lng": -110.9515 }
+  ],
+  "sunlink_walk_miles": 0.35
+}

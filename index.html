@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>5PM Tucson — Happy Hour Finder</title>
+  <meta name="description" content="Find happy hours at bars and breweries across Tucson. Map, deals, and HH Now filters." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha384-c6Rcwz4e4CITMbu/NBmnNS8yN2sC3cUElMEMfP3vqqKFp7GOYaaBBCqmaWBjmkjb" crossorigin="anonymous" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css" crossorigin="anonymous" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css" crossorigin="anonymous" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand-row">
+      <a class="brand" href="/">
+        <span class="brand-mark">5PM</span>
+        <span class="brand-city">TUCSON</span>
+      </a>
+      <div class="live-clock" id="liveClock" aria-live="polite"></div>
+    </div>
+    <p class="tagline">Real deals, right now.</p>
+  </header>
+
+  <main>
+    <section class="search-panel">
+      <div class="search-wrap">
+        <input
+          id="searchInput"
+          type="search"
+          placeholder="Neighborhood, bar, or address…"
+          autocomplete="off"
+          aria-label="Search bars"
+        />
+        <button type="button" class="near-me-btn" id="nearMeBtn" title="Find bars near me">⌖</button>
+        <button type="button" class="search-clear" id="searchClear" hidden aria-label="Clear search">×</button>
+        <ul id="autocompleteList" class="autocomplete" hidden></ul>
+      </div>
+      <button type="button" class="search-go" id="searchBtn">FIND BARS →</button>
+    </section>
+
+    <section class="toolbar">
+      <div class="view-toggle" role="tablist">
+        <button type="button" class="tab active" id="tabList" role="tab" aria-selected="true">≡ List</button>
+        <button type="button" class="tab" id="tabMap" role="tab" aria-selected="false">◎ Map</button>
+      </div>
+      <div class="result-meta">
+        <span id="resultCount">—</span>
+        <button type="button" class="filter-toggle" id="filterToggle">Filters <span class="arrow">▼</span></button>
+      </div>
+    </section>
+
+    <section class="filters" id="filtersPanel" hidden>
+      <div class="filter-row" id="timeFilterRow">
+        <button type="button" class="filter-btn active" data-time="all">All Hours</button>
+        <button type="button" class="filter-btn" data-time="open">Open Now</button>
+        <button type="button" class="filter-btn" data-time="hhnow" id="hhNowBtn">HH Now</button>
+        <button type="button" class="filter-btn" id="hhTimeBtn">HH Time ▾</button>
+      </div>
+      <div class="hh-time-panel" id="hhTimePanel" hidden>
+        <label>
+          Day
+          <select id="hhDay">
+            <option value="0">Sun</option>
+            <option value="1">Mon</option>
+            <option value="2">Tue</option>
+            <option value="3">Wed</option>
+            <option value="4">Thu</option>
+            <option value="5">Fri</option>
+            <option value="6">Sat</option>
+          </select>
+        </label>
+        <label>
+          Time
+          <input type="time" id="hhTime" value="17:00" />
+        </label>
+        <button type="button" class="filter-btn active" id="hhTimeApply">Apply</button>
+      </div>
+      <div class="filter-row" id="vibeFilterRow"></div>
+      <div class="filter-row">
+        <button type="button" class="filter-btn active" data-price="all">Any $</button>
+        <button type="button" class="filter-btn" data-price="1">$</button>
+        <button type="button" class="filter-btn" data-price="2">$$</button>
+        <button type="button" class="filter-btn" data-price="3">$$$</button>
+        <button type="button" class="filter-btn" data-outdoor="1">Patio</button>
+        <button type="button" class="filter-btn" data-sunlink="1">Sun Link</button>
+        <button type="button" class="filter-btn" data-verified="1">Verified HH</button>
+      </div>
+      <div class="area-row" id="areaRow"></div>
+    </section>
+
+    <section class="results" id="resultsArea">
+      <div id="listView" class="list-view">
+        <div id="cardsGrid" class="cards-grid"></div>
+      </div>
+      <div id="mapView" class="map-view" hidden>
+        <div id="mapContainer"></div>
+        <aside id="mapSidebar" class="map-sidebar">
+          <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Close">×</button>
+          <div id="mapSidebarList"></div>
+        </aside>
+        <button type="button" class="map-fs" id="mapFsBtn" title="Fullscreen">⛶</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Independent Tucson happy hour guide. Data from OpenStreetMap, bar websites, and local reports. Deals change — always confirm with the venue.</p>
+    <p class="muted">Not affiliated with 5pm.nyc.</p>
+  </footer>
+
+  <button type="button" class="back-to-top" id="backToTop" hidden aria-label="Back to top">↑</button>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js" crossorigin="anonymous"></script>
+  <script src="app.js"></script>
+</body>
+</html>

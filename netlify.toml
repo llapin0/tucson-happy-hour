@@ -1,0 +1,19 @@
+# Static site — publish prepared public/ folder
+[build]
+  publish = "public"
+  command = "node scripts/prepare-public.mjs"
+
+[[headers]]
+  for = "/bars.json"
+  [headers.values]
+    Cache-Control = "public, max-age=300"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
